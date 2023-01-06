@@ -60,6 +60,6 @@ ActiveSupport.on_load(:active_record) do
   end
 
   def self.retrieve_connection
-    connection_handler.retrieve_connection(proxy_connection || self)
+    ActiveRecord::Base.establish_connection.connection
   end
 end
