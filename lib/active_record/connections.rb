@@ -56,10 +56,10 @@ ActiveSupport.on_load(:active_record) do
   extend ActiveRecord::Connections
 
   def self.connection_pool
-    connection_handler.retrieve_connection_pool(proxy_connection || self)
+    connection_handler.retrieve_connection_pool(proxy_connection || 'primary')
   end
 
   def self.retrieve_connection
-    ActiveRecord::Base.establish_connection.connection
+    connection_handler.retrieve_connection(proxy_connection || 'primary')
   end
 end
