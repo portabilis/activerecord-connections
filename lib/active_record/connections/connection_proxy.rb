@@ -29,7 +29,7 @@ module ActiveRecord
         ::ActiveRecord::Connections.class_eval <<-RUBY
           class AbstractConnection#{@connection_name} < ActiveRecord::Base
             self.abstract_class = true
-            self.establish_connection(#{@connection_spec.inspect})
+            establish_connection(#{@connection_spec})
 
             self
           end

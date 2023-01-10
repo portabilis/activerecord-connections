@@ -44,7 +44,7 @@ module ActiveRecord
 
     def proxy_connection_thread_local_name
       cls = self
-      while cls != ActiveRecord::Base && !cls.abstract_class
+      while cls != ActiveRecord::Base
         cls = cls.superclass
       end
       "ActiveRecord::Connections.proxy_connection#{cls.name}"
@@ -56,10 +56,10 @@ ActiveSupport.on_load(:active_record) do
   extend ActiveRecord::Connections
 
   def self.connection_pool
-    connection_handler.retrieve_connection_pool(proxy_connection || 'primary')
+    connection_handler.retrieve_connection_pool(proxy_connection.try(:name) || 'primary')
   end
 
   def self.retrieve_connection
-    connection_handler.retrieve_connection(proxy_connection || 'primary')
+    connection_handler.retrieve_connection(proxy_connection.try(:name) || 'primary')
   end
 end
