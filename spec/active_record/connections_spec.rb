@@ -95,6 +95,30 @@ describe ActiveRecord::Connections do
     end
   end
 
+  it 'fabricates the connection class only once under concurrent first access' do
+    fabrications = Queue.new
+
+    probe = Module.new do
+      define_method(:fabricate_connection_klass) do
+        fabrications << 1
+        ::Kernel.sleep 0.05
+        super()
+      end
+    end
+    ActiveRecord::Connections::ConnectionProxy.send(:prepend, probe)
+
+    threads = 8.times.map do
+      Thread.new do
+        ActiveRecord::Base.using_connection(999_999, :adapter => 'sqlite3', :database => ':memory:') do
+          ActiveRecord::Base.proxy_connection.respond_to?(:execute)
+        end
+      end
+    end
+    threads.each(&:join)
+
+    fabrications.size.should eq 1
+  end
+
   it 'do not propagate proxy connection between threads (thread-safe)' do
     Thread.new do
       ActiveRecord::Base.proxy_connection = 'proxy connection from another thread'

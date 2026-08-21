@@ -4,6 +4,12 @@ module ActiveRecord
   module Connections
     autoload :ConnectionProxy, 'active_record/connections/connection_proxy'
 
+    # Serializa a fabricação das classes abstratas de conexão: sem isso, duas
+    # threads no primeiro acesso de um mesmo tenant fabricam a classe duas
+    # vezes e o segundo establish_connection substitui o pool do primeiro,
+    # vazando as conexões dele (órfãs até o reaper/GC).
+    FABRICATION_MUTEX = Mutex.new
+
     # Using on ApplicationController:
     #
     #   class ApplicationController < ActionController::Base
