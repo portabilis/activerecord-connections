@@ -4,6 +4,16 @@ module ActiveRecord
   module Connections
     autoload :ConnectionProxy, 'active_record/connections/connection_proxy'
 
+    # When false, +release_connection+ only checks the tenant connection back
+    # into its pool, keeping the socket open. Meant for test suites that rely
+    # on transactional fixtures: the rollback only reaches the tenant
+    # connection while it stays alive, so closing it mid-example would let
+    # writes escape the transaction. Defaults to true (close idle sockets).
+    class << self
+      attr_accessor :close_idle_on_release
+    end
+    self.close_idle_on_release = true
+
     # Using on ApplicationController:
     #
     #   class ApplicationController < ActionController::Base
@@ -64,6 +74,8 @@ module ActiveRecord
       return unless pool
 
       pool.release_connection
+
+      return unless ActiveRecord::Connections.close_idle_on_release
 
       # On in-memory databases the data lives inside the connection, so closing
       # it would wipe the database.

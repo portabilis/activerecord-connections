@@ -169,6 +169,20 @@ describe ActiveRecord::Connections do
         ActiveRecord::Base.connection.select_value('SELECT 42').should eq 42
       end
     end
+
+    context 'when close_idle_on_release is disabled' do
+      before { ActiveRecord::Connections.close_idle_on_release = false }
+      after { ActiveRecord::Connections.close_idle_on_release = true }
+
+      it 'only checks the connection back into the pool, keeping the socket open' do
+        ActiveRecord::Base.using_connection(42, :adapter => 'sqlite3', :database => database_path) do
+          ActiveRecord::Base.connection.execute('SELECT 1')
+        end
+
+        pool.connections.size.should eq 1
+        pool.should_not be_active_connection
+      end
+    end
   end
 
   it 'tracks connection depth per thread' do
@@ -188,11 +202,14 @@ describe ActiveRecord::Connections do
   end
 
   it 'should have seperate dbs for contacts and hotels' do
+    # Framework tables vary across Rails versions (ar_internal_metadata only
+    # exists on 5+), so compare just the tables this suite creates.
+    internal = %w[schema_migrations ar_internal_metadata]
+
     Customer.each do |customer|
-      #there should be 3 tables: schema_migrations,customers,contacts
-      Contact.connection.tables.should eq ["schema_migrations","customers","contacts"]
-      #only one table created manually
-      Hotel.connection.tables.should eq ["hotels"]
+      (Contact.connection.tables - internal).should eq %w[customers contacts]
+      # only one table created manually
+      (Hotel.connection.tables - internal).should eq %w[hotels]
     end
   end
 end
