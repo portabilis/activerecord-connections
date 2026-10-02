@@ -18,7 +18,24 @@ module ActiveRecord
       private
 
       def connection
-        @connection ||= retrieve_connection_klass rescue fabricate_connection_klass
+        @connection ||= retrieve_or_fabricate_connection_klass
+      end
+
+      # O rescue restrito a NameError deixa passar erros reais (banco fora,
+      # spec inválida), que antes caíam no rescue nu e refabricavam a classe.
+      #
+      # Todo acesso passa pelo mutex: a constante AbstractConnection<id> passa
+      # a existir na abertura do corpo da classe, antes de o
+      # establish_connection registrar o pool. Fora do mutex, outra thread
+      # acharia a classe sem pool e falharia com ConnectionNotEstablished.
+      def retrieve_or_fabricate_connection_klass
+        ::ActiveRecord::Connections::FABRICATION_MUTEX.synchronize do
+          begin
+            retrieve_connection_klass
+          rescue ::NameError
+            fabricate_connection_klass
+          end
+        end
       end
 
       def retrieve_connection_klass
