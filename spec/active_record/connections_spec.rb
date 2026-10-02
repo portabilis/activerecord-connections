@@ -120,6 +120,30 @@ describe ActiveRecord::Connections do
     fabrications.size.should eq 1
   end
 
+  it 'does not expose the connection class before its pool is registered' do
+    # The constant exists as soon as the class body opens, before
+    # establish_connection registers the pool. The delay widens that window.
+    probe = Module.new do
+      define_method(:establish_connection) do |*args|
+        ::Kernel.sleep 0.2 if name == 'ActiveRecord::Connections::AbstractConnection999998'
+        super(*args)
+      end
+    end
+    ActiveRecord::Base.singleton_class.send(:prepend, probe)
+
+    threads = 8.times.map do |index|
+      Thread.new do
+        sleep 0.02 * index
+
+        ActiveRecord::Base.using_connection(999_998, :adapter => 'sqlite3', :database => ':memory:') do
+          ActiveRecord::Base.connection.select_value('SELECT 1').to_i
+        end
+      end
+    end
+
+    threads.map(&:value).should eq [1] * 8
+  end
+
   it 'do not propagate proxy connection between threads (thread-safe)' do
     Thread.new do
       ActiveRecord::Base.proxy_connection = 'proxy connection from another thread'
